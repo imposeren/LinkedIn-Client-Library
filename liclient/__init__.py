@@ -238,7 +238,6 @@ class LinkedInAPI(object):
                 else:
                     prep_url = self.append_sequential_arg(k, kws[k], prep_url)
         prep_url = re.sub('&&', '&', prep_url)
-        print prep_url
         return user_token, prep_url
 
     def append_id_args(self, ids, prep_url):
@@ -277,7 +276,6 @@ class LinkedInAPI(object):
         selector_string = selector_string.strip(',')
         selector_string += ')'
         prep_url += selector_string
-        print prep_url
         return prep_url
 
     def check_network_code(self, code):
@@ -384,7 +382,6 @@ class LinkedInSearchAPI(LinkedInAPI):
             'sort_criteria': self.sort_criteria
         }
         self.user_token, self.generated_url = self.do_process(access_token, params)
-        print "url:", self.generated_url
 
     def do_process(self, access_token, params):
         assert type(params) == type(dict()), 'The passed parameters to the Search API must be a dictionary.'
