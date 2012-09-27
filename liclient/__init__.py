@@ -68,11 +68,9 @@ class LinkedInAPI(object):
         access_token = dict(urlparse.parse_qsl(content))
         return access_token
 
-    def get_authorize_url(self, request_token, callback=None):
+    def get_authorize_url(self, request_token):
         authorization_url = self.base_url + self.authorize_path
         url = "%s?oauth_token=%s" % (authorization_url, request_token['oauth_token'])
-        if callback:
-            url = "%s&oauth_callback=%s" % (url, self._quote(callback))
         return url
 
     def get_user_profile(self, access_token, selectors=None, **kwargs):
@@ -83,13 +81,13 @@ class LinkedInAPI(object):
         a list of LinkedIn compatible field selectors.
         """
 
-        assert type(selectors) == type([]), '"Keyword argument "selectors" must be of type "list"'
         user_token, url = self.prepare_request(access_token, self.api_profile_url, kwargs)
         client = oauth.Client(self.consumer, user_token)
 
         if not selectors:
             resp, content = client.request(self.api_profile_url, 'GET')
         else:
+            assert type(selectors) == type([]), '"Keyword argument "selectors" must be of type "list"'
             url = self.prepare_field_selectors(selectors, url)
             resp, content = client.request(url, 'GET')
 
