@@ -12,7 +12,7 @@ class LinkedInAPI(object):
     def __init__(self, ck, cs):
         self.consumer_key = ck
         self.consumer_secret = cs
-        
+
         self.api_profile_url = 'http://api.linkedin.com/v1/people/~'
         self.api_profile_connections_url = 'http://api.linkedin.com/v1/people/~/connections'
         self.api_network_update_url = 'http://api.linkedin.com/v1/people/~/network'
@@ -20,20 +20,20 @@ class LinkedInAPI(object):
                                         'key={NETWORK UPDATE KEY}/update-comments'
         self.api_update_status_url = 'http://api.linkedin.com/v1/people/~/current-status'
         self.api_mailbox_url = 'http://api.linkedin.com/v1/people/~/mailbox'
-        
+
         self.base_url = 'https://api.linkedin.com'
         self.li_url = 'http://www.linkedin.com'
-        
+
         self.request_token_path = '/uas/oauth/requestToken'
         self.access_token_path = '/uas/oauth/accessToken'
         self.authorize_path = '/uas/oauth/authorize'
-        
+
         self.consumer = oauth.Consumer(self.consumer_key, self.consumer_secret)
-        
+
         self.valid_network_update_codes = ['ANSW', 'APPS', 'CONN', 'JOBS',
                                            'JGRP', 'PICT', 'RECU', 'PRFU',
                                            'QSTN', 'STAT']
-        
+
     def get_request_token(self):
         """
         Get a request token based on the consumer key and secret to supply the
@@ -42,11 +42,11 @@ class LinkedInAPI(object):
         """
         client = oauth.Client(self.consumer)
         request_token_url = self.base_url + self.request_token_path
-        
+
         resp, content = client.request(request_token_url, 'POST')
         request_token = dict(urlparse.parse_qsl(content))
         return request_token
-    
+
     def get_access_token(self, request_token, verifier):
         """
         Get an access token based on the generated request_token and the
@@ -58,11 +58,17 @@ class LinkedInAPI(object):
         token.set_verifier(verifier)
         client = oauth.Client(self.consumer, token)
         access_token_url = self.base_url + self.access_token_path
-        
+
         resp, content = client.request(access_token_url, 'POST')
         access_token = dict(urlparse.parse_qsl(content))
         return access_token
-    
+
+    def get_authorize_url(self, callback=None):
+        authorization_url = self.base_url + self.authorize_path
+        url = "%s?oauth_token=%s" % (authorization_url, request_token['oauth_token'])
+        if callback:
+            url = "%s;oauth_callback=%s" % (url, callback)
+
     def get_user_profile(self, access_token, selectors=None, **kwargs):
         """
         Get a user profile.  If keyword argument "id" is not supplied, this
@@ -70,20 +76,20 @@ class LinkedInAPI(object):
         the user whose id is specificed.  The "selectors" keyword argument takes
         a list of LinkedIn compatible field selectors.
         """
-        
+
         assert type(selectors) == type([]), '"Keyword argument "selectors" must be of type "list"'
         user_token, url = self.prepare_request(access_token, self.api_profile_url, kwargs)
         client = oauth.Client(self.consumer, user_token)
-        
+
         if not selectors:
             resp, content = client.request(self.api_profile_url, 'GET')
         else:
             url = self.prepare_field_selectors(selectors, url)
             resp, content = client.request(url, 'GET')
-        
+
         content = self.clean_dates(content)
         return LinkedInXMLParser(content).results
-    
+
     def get_user_connections(self, access_token, selectors=None, **kwargs):
         """
         Get the connections of the current user.  Valid keyword arguments are
@@ -98,7 +104,7 @@ class LinkedInAPI(object):
         resp, content = client.request(url, 'GET')
         content = self.clean_dates(content)
         return LinkedInXMLParser(content).results
-    
+
     def get_network_updates(self, access_token, **kwargs):
         """Get network updates for the current user.  Valid keyword arguments are
         "count", "start", "type", "before", and "after".  "Count" and "start" are for the number
@@ -109,18 +115,18 @@ class LinkedInAPI(object):
         if 'type' in kwargs.keys():
             assert type(kwargs['type']) == type(list()), 'Keyword argument "type" must be of type "list"'
             [self.check_network_code(c) for c in kwargs['type']]
-        
+
         if 'before' in kwargs.keys():
             kwargs['before'] = self.dt_obj_to_string(kwargs['before']) if kwargs['before'] else None
         if 'after' in kwargs.keys():
             kwargs['after'] = self.dt_obj_to_string(kwargs['after']) if kwargs['after'] else None
-        
+
         user_token, url = self.prepare_request(access_token, self.api_network_update_url, kwargs)
         client = oauth.Client(self.consumer, user_token)
         resp, content = client.request(url, 'GET')
         content = self.clean_dates(content)
         return LinkedInXMLParser(content).results
-        
+
     def get_comment_feed(self, access_token, network_key):
         """
         Get a comment feed for a particular network update.  Requires the update key
@@ -132,7 +138,7 @@ class LinkedInAPI(object):
         resp, content = client.request(url, 'GET')
         content = self.clean_dates(content)
         return LinkedInXMLParser(content).results
-        
+
     def submit_comment(self, access_token, network_key, bd):
         """
         Submit a comment to a network update.  Requires the update key for the network
@@ -147,7 +153,7 @@ class LinkedInAPI(object):
         client = oauth.Client(self.consumer, user_token)
         resp, content = client.request(url, method='POST', body=xml_request, headers={'Content-Type': 'application/xml'})
         return content
-    
+
     def set_status_update(self, access_token, bd):
         """
         Set the status for the current user.  The status update body is the last
@@ -161,7 +167,7 @@ class LinkedInAPI(object):
         client = oauth.Client(self.consumer, user_token)
         resp, content = client.request(url, method='PUT', body=xml_request)
         return content
-    
+
     def search(self, access_token, data, field_selector_string=None):
         """
         Use the LinkedIn Search API to find users.  The criteria for your search
@@ -175,7 +181,7 @@ class LinkedInAPI(object):
         rest, content = client.request(srch.generated_url, method='GET')
         # print content # useful for debugging...
         return LinkedInXMLParser(content).results
-    
+
     def send_message(self, access_token, recipients, subject, body):
         """
         Send a message to a connection.  "Recipients" is a list of ID numbers,
@@ -189,14 +195,14 @@ class LinkedInAPI(object):
         client = oauth.Client(self.consumer, user_token)
         resp, content = client.request(url, method='POST', body=mxml, headers={'Content-Type': 'application/xml'})
         return content
-    
+
     def send_invitation(self, access_token, recipients, subject, body, **kwargs):
         """
         Send an invitation to a user.  "Recipients" is an ID number OR email address
         (see below), "subject" is the message subject, and "body" is the body of the message.
         The LinkedIn API does not allow HTML in messages.  All XML will be applied
         for you.
-        
+
         NOTE:
         If you pass an email address as the recipient, you MUST include "first_name" AND
         "last_name" as keyword arguments.  Conversely, if you pass a member ID as the
@@ -230,7 +236,7 @@ class LinkedInAPI(object):
         prep_url = re.sub('&&', '&', prep_url)
         print prep_url
         return user_token, prep_url
-    
+
     def append_id_args(self, ids, prep_url):
         assert type(ids) == type([]), 'Keyword argument "id" must be a list'
         if len(ids) > 1:
@@ -241,7 +247,7 @@ class LinkedInAPI(object):
         else:
             prep_url = re.sub('~', 'id='+ids[0], prep_url)
         return prep_url
-    
+
     def append_initial_arg(self, key, args, prep_url):
         assert '?' not in prep_url, 'Initial argument has already been applied to %s' % prep_url
         if type(args) == type([]):
@@ -251,14 +257,14 @@ class LinkedInAPI(object):
         else:
             prep_url += '?' + key + '=' + str(args)
         return prep_url
-    
+
     def append_sequential_arg(self, key, args, prep_url):
         if type(args) == type([]):
             prep_url += '&' + ''.join(['&'+key+'='+str(arg) for arg in args])
         else:
             prep_url += '&' + key + '=' + str(args)
         return prep_url
-    
+
     def prepare_field_selectors(self, selectors, url):
         prep_url = url
         selector_string = ':('
@@ -269,11 +275,11 @@ class LinkedInAPI(object):
         prep_url += selector_string
         print prep_url
         return prep_url
-    
+
     def check_network_code(self, code):
         if code not in self.valid_network_update_codes:
             raise ValueError('Code %s not a valid update code' % code)
-            
+
     def clean_dates(self, content):
         data = etree.fromstring(content)
         for d in data.iter(tag=etree.Element):
@@ -285,7 +291,7 @@ class LinkedInAPI(object):
             except:
                 continue
         return etree.tostring(data)
-    
+
     def dt_obj_to_string(self, dtobj):
         if type(dtobj) == type(int()) or type(dtobj) == type(str()) or type(dtobj) == type(long()):
             return dtobj
@@ -294,10 +300,10 @@ class LinkedInAPI(object):
         else:
             raise TypeError('Inappropriate argument type - use either a datetime object, \
                             string, or integer for timestamps')
-    
+
     def message_factory(self, recipients, subject, body):
         rec_path = '/people/'
-        
+
         E = ElementMaker()
         MAILBOX_ITEM = E.mailbox_item
         RECIPIENTS = E.recipients
@@ -305,9 +311,9 @@ class LinkedInAPI(object):
         PERSON = E.person
         SUBJECT = E.subject
         BODY = E.body
-        
+
         recs = [RECIPIENT(PERSON(path=rec_path+r)) for r in recipients]
-        
+
         mxml = MAILBOX_ITEM(
             RECIPIENTS(
                 *recs
@@ -320,7 +326,7 @@ class LinkedInAPI(object):
     def invitation_factory(self, recipient, subject, body, **kwargs):
         id_rec_path = '/people/id='
         email_rec_path = '/people/email='
-        
+
         E = ElementMaker()
         MAILBOX_ITEM = E.mailbox_item
         RECIPIENTS = E.recipients
@@ -336,7 +342,7 @@ class LinkedInAPI(object):
         AUTH = E.authorization
         NAME = E.name
         VALUE = E.value
-        
+
         if not '@' in recipient:
             recs = RECIPIENT(PERSON(path=id_rec_path+r))
             auth = CONTENT(REQUEST(CONNECT('friend'), AUTH(NAME(kwargs['name']), VALUE(kwargs['value']))))
@@ -348,7 +354,7 @@ class LinkedInAPI(object):
                             path=email_rec_path+r
                         )
                     )
-            auth = CONTENT(REQUEST(CONNECT('friend')))        
+            auth = CONTENT(REQUEST(CONNECT('friend')))
         mxml = MAILBOX_ITEM(
             RECIPIENTS(
                 *recs
@@ -358,7 +364,7 @@ class LinkedInAPI(object):
             auth
         )
         return re.sub('_', '-', etree.tostring(mxml))
-            
+
 class LinkedInSearchAPI(LinkedInAPI):
     def __init__(self, params, access_token, field_selector_string=None):
         self.api_search_url = 'http://api.linkedin.com/v1/people-search'
@@ -375,7 +381,7 @@ class LinkedInSearchAPI(LinkedInAPI):
         }
         self.user_token, self.generated_url = self.do_process(access_token, params)
         print "url:", self.generated_url
-    
+
     def do_process(self, access_token, params):
         assert type(params) == type(dict()), 'The passed parameters to the Search API must be a dictionary.'
         user_token = oauth.Token(access_token['oauth_token'],
@@ -393,7 +399,7 @@ class LinkedInSearchAPI(LinkedInAPI):
                 remaining_params[p] = params[p]
         url = self.process_remaining_params(url, remaining_params)
         return user_token, url
-        
+
     def process_remaining_params(self, url, ps):
         prep_url = url
         for p in ps:
@@ -402,19 +408,19 @@ class LinkedInSearchAPI(LinkedInAPI):
             except AssertionError:
                 prep_url = self.append_sequential_arg(p, ps[p], prep_url)
         return prep_url
-    
+
     def keywords(self, url, ps):
         return self.list_argument(url, ps, 'keywords')
-    
+
     def name(self, url, ps):
         return self.list_argument(url, ps, 'name')
-    
+
     def current_company(self, url, ps):
         return self.true_false_argument(url, ps, 'current-company')
-    
+
     def current_title(self, url, ps):
         return self.true_false_argument(url, ps, 'current-title')
-    
+
     def location_type(self, url, ps):
         prep_url = url
         assert ps in ['I', 'Y'], 'Valid parameter types for search-location-type are "I" and "Y"'
@@ -423,7 +429,7 @@ class LinkedInSearchAPI(LinkedInAPI):
         except AssertionError:
             prep_url = self.append_sequential_arg('search-location-type', ps, prep_url)
         return prep_url
-        
+
     def network(self, url, ps):
         prep_url = url
         assert ps in ['in', 'out'], 'Valid parameter types for network are "in" and "out"'
@@ -432,7 +438,7 @@ class LinkedInSearchAPI(LinkedInAPI):
         except AssertionError:
             prep_url = self.append_sequential_arg('network', ps, prep_url)
         return prep_url
-    
+
     def sort_criteria(self):
         prep_url = url
         assert ps in ['recommenders', 'distance', 'relevance'], 'Valid parameter types for sort-criteria \
@@ -442,7 +448,7 @@ class LinkedInSearchAPI(LinkedInAPI):
         except AssertionError:
             prep_url = self.append_sequential_arg('sort-criteria', ps, prep_url)
         return prep_url
-    
+
     def true_false_argument(self, url, ps, arg):
         prep_url = url
         if ps:
@@ -454,7 +460,7 @@ class LinkedInSearchAPI(LinkedInAPI):
         except AssertionError:
             prep_url = self.append_sequential_arg(arg, ps, prep_url)
         return prep_url
-    
+
     def list_argument(self, url, ps, arg):
         prep_url = url
         li = '+'.join(ps)
