@@ -63,7 +63,7 @@ class LinkedInAPI(object):
         access_token = dict(urlparse.parse_qsl(content))
         return access_token
 
-    def get_authorize_url(self, callback=None):
+    def get_authorize_url(self, request_token, callback=None):
         authorization_url = self.base_url + self.authorize_path
         url = "%s?oauth_token=%s" % (authorization_url, request_token['oauth_token'])
         if callback:
