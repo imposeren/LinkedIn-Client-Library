@@ -37,7 +37,7 @@ class LinkedInAPI(object):
     def _quote(self, st):
         return urllib.quote(st, safe='~')
 
-    def get_request_token(self):
+    def get_request_token(self, extra=None):
         """
         Get a request token based on the consumer key and secret to supply the
         user with the authorization URL they can use to give the application
@@ -45,6 +45,8 @@ class LinkedInAPI(object):
         """
         client = oauth.Client(self.consumer)
         request_token_url = self.base_url + self.request_token_path
+        if extra:
+            request_token_url = "%s?%s" % (request_token_url, extra)
 
         resp, content = client.request(request_token_url, 'POST')
         request_token = dict(urlparse.parse_qsl(content))
