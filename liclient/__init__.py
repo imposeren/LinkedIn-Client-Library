@@ -68,6 +68,7 @@ class LinkedInAPI(object):
         url = "%s?oauth_token=%s" % (authorization_url, request_token['oauth_token'])
         if callback:
             url = "%s;oauth_callback=%s" % (url, callback)
+        return url
 
     def get_user_profile(self, access_token, selectors=None, **kwargs):
         """
