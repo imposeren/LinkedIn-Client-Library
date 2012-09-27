@@ -34,6 +34,9 @@ class LinkedInAPI(object):
                                            'JGRP', 'PICT', 'RECU', 'PRFU',
                                            'QSTN', 'STAT']
 
+    def _quote(self, st):
+        return urllib.quote(st, safe='~')
+
     def get_request_token(self):
         """
         Get a request token based on the consumer key and secret to supply the
@@ -67,7 +70,7 @@ class LinkedInAPI(object):
         authorization_url = self.base_url + self.authorize_path
         url = "%s?oauth_token=%s" % (authorization_url, request_token['oauth_token'])
         if callback:
-            url = "%s;oauth_callback=%s" % (url, callback)
+            url = "%s&oauth_callback=%s" % (url, self._quote(callback))
         return url
 
     def get_user_profile(self, access_token, selectors=None, **kwargs):
