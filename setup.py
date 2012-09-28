@@ -2,10 +2,9 @@ from distutils.core import setup
 
 setup(
     name='LinkedIn Client Library',
-    version='1.0.9',
-    author='Aaron Brenzel',
-    author_email='abrenzel@millerresource.com',
-    url='12.236.169.60:4830/liclient',
+    version='1.0.10',
+    author='Yaroslav Klyuyev',
+    author_email='yaroslav,klyuyev@gmail.com',
     install_requires = ['lxml', 'httplib2'],
     description='Library for accessing the LinkedIn API in Python',
     packages=['liclient', 'liclient.parsers', 'liclient.oauth2', 'liclient.analysis'],

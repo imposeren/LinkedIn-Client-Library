@@ -45,10 +45,8 @@ class LinkedInAPI(object):
         """
         client = oauth.Client(self.consumer)
         request_token_url = self.base_url + self.request_token_path
-        if extra:
-            request_token_url = "%s&%s" % (request_token_url, self._quote(extra))
 
-        resp, content = client.request(request_token_url, 'POST')
+        resp, content = client.request(request_token_url, 'POST', body=extra)
         request_token = dict(urlparse.parse_qsl(content))
         return request_token
 
