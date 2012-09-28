@@ -8,6 +8,16 @@ from parsers.lixml import LinkedInXMLParser
 from lxml import etree
 from lxml.builder import ElementMaker
 
+
+class APIException(Exception):
+    def __init__(self, message, response, content):
+        self.message = message
+        self.response = response
+        self.content = content
+
+    def __str__(self):
+        return self.message
+
 class LinkedInAPI(object):
     def __init__(self, ck, cs):
         self.consumer_key = ck
@@ -37,6 +47,12 @@ class LinkedInAPI(object):
     def _quote(self, st):
         return urllib.quote(st, safe='~')
 
+    def status_check(self, response, content, message=""):
+        message = message or "status code should be 200, got %s instead" % response.code
+        if response.status != 200:
+            raise APIException(message, response, content)
+
+
     def get_request_token(self, extra=None):
         """
         Get a request token based on the consumer key and secret to supply the
@@ -47,6 +63,8 @@ class LinkedInAPI(object):
         request_token_url = self.base_url + self.request_token_path
 
         resp, content = client.request(request_token_url, 'POST', body=extra)
+        self.status_check(resp, content, "Can't get request_token")
+
         request_token = dict(urlparse.parse_qsl(content))
         return request_token
 
@@ -63,6 +81,9 @@ class LinkedInAPI(object):
         access_token_url = self.base_url + self.access_token_path
 
         resp, content = client.request(access_token_url, 'POST')
+
+        self.status_check(resp, content, "Can't get access_token")
+
         access_token = dict(urlparse.parse_qsl(content))
         return access_token
 
@@ -89,6 +110,7 @@ class LinkedInAPI(object):
             url = self.prepare_field_selectors(selectors, url)
             resp, content = client.request(url, 'GET')
 
+        self.status_check(resp, content)
         content = self.clean_dates(content)
         return LinkedInXMLParser(content).results
 
@@ -104,6 +126,7 @@ class LinkedInAPI(object):
         user_token, url = self.prepare_request(access_token, url, kwargs)
         client = oauth.Client(self.consumer, user_token)
         resp, content = client.request(url, 'GET')
+        self.status_check(resp, content)
         content = self.clean_dates(content)
         return LinkedInXMLParser(content).results
 
@@ -126,6 +149,7 @@ class LinkedInAPI(object):
         user_token, url = self.prepare_request(access_token, self.api_network_update_url, kwargs)
         client = oauth.Client(self.consumer, user_token)
         resp, content = client.request(url, 'GET')
+        self.status_check(resp, content)
         content = self.clean_dates(content)
         return LinkedInXMLParser(content).results
 
@@ -138,6 +162,7 @@ class LinkedInAPI(object):
         user_token, url = self.prepare_request(access_token, url)
         client = oauth.Client(self.consumer, user_token)
         resp, content = client.request(url, 'GET')
+        self.status_check(resp, content)
         content = self.clean_dates(content)
         return LinkedInXMLParser(content).results
 
@@ -154,6 +179,7 @@ class LinkedInAPI(object):
         user_token, url = self.prepare_request(access_token, url)
         client = oauth.Client(self.consumer, user_token)
         resp, content = client.request(url, method='POST', body=xml_request, headers={'Content-Type': 'application/xml'})
+        self.status_check(resp, content)
         return content
 
     def set_status_update(self, access_token, bd):
@@ -168,6 +194,7 @@ class LinkedInAPI(object):
         user_token, url = self.prepare_request(access_token, self.api_update_status_url)
         client = oauth.Client(self.consumer, user_token)
         resp, content = client.request(url, method='PUT', body=xml_request)
+        self.status_check(resp, content)
         return content
 
     def search(self, access_token, data, field_selector_string=None):
@@ -181,6 +208,7 @@ class LinkedInAPI(object):
         srch = LinkedInSearchAPI(data, access_token, field_selector_string)
         client = oauth.Client(self.consumer, srch.user_token)
         rest, content = client.request(srch.generated_url, method='GET')
+        self.status_check(resp, content)
         # print content # useful for debugging...
         return LinkedInXMLParser(content).results
 
@@ -196,6 +224,7 @@ class LinkedInAPI(object):
         user_token, url = self.prepare_request(access_token, self.api_mailbox_url)
         client = oauth.Client(self.consumer, user_token)
         resp, content = client.request(url, method='POST', body=mxml, headers={'Content-Type': 'application/xml'})
+        self.status_check(resp, content)
         return content
 
     def send_invitation(self, access_token, recipients, subject, body, **kwargs):
@@ -220,6 +249,7 @@ class LinkedInAPI(object):
         user_token, url = self.prepare_request(access_token, self.api_mailbox_url)
         client = oauth.Client(self.consumer, user_token)
         resp, content = client.request(url, method='POST', body=mxml, headers={'Content-Type': 'application/xml'})
+        self.status_check(resp, content)
         return content
 
     def prepare_request(self, access_token, url, kws=[]):
