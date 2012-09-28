@@ -48,7 +48,7 @@ class LinkedInAPI(object):
         return urllib.quote(st, safe='~')
 
     def status_check(self, response, content, message=""):
-        message = message or "status code should be 200, got %s instead" % response.code
+        message = message or "status code should be 200, got %s instead" % response.status
         if response.status != 200:
             raise LinkedInAPIException(message, response, content)
 
