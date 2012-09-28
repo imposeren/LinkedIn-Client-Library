@@ -9,7 +9,7 @@ from lxml import etree
 from lxml.builder import ElementMaker
 
 
-class APIException(Exception):
+class LinkedInAPIException(Exception):
     def __init__(self, message, response, content):
         self.message = message
         self.response = response
@@ -50,7 +50,7 @@ class LinkedInAPI(object):
     def status_check(self, response, content, message=""):
         message = message or "status code should be 200, got %s instead" % response.code
         if response.status != 200:
-            raise APIException(message, response, content)
+            raise LinkedInAPIException(message, response, content)
 
 
     def get_request_token(self, extra=None):
