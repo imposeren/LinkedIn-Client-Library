@@ -15,9 +15,10 @@ class LinkedInData(object):
 
     def jsonify(self):
         json = {}
-        for k in self.__dict__.keys():
-            if type(self.__dict__[k]) == type(''):
-                json[k] = self.__dict__[k]
+        for k in dir(self):
+            value = getattr(self, k)
+            if isinstance(value, basestring):
+                json[k] = value
         return json
 
     def xmlify(self):
