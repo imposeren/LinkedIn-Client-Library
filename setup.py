@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name='LinkedIn Client Library',
-    version='1.0.15',
+    version='1.0.16',
     author='Yaroslav Klyuyev',
     author_email='yaroslav,klyuyev@gmail.com',
     install_requires = ['lxml', 'httplib2'],

@@ -11,7 +11,7 @@ class LinkedInData(object):
     def parse_data(self, data):
         for key in data.keys():
             attr = key.replace('-', '_')
-            self.__dict__[attr] = data[key]
+            setattr(self, attr, data[key])
 
     def jsonify(self):
         json = {}
