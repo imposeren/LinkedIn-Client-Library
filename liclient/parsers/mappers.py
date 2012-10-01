@@ -1,23 +1,24 @@
 from lxml import etree
 import datetime, re
 import lixml
-    
+
+
 class LinkedInData(object):
     def __init__(self, data, xml):
         self.xml = xml
         self.parse_data(data)
-    
+
     def parse_data(self, data):
         for k in data.keys():
             self.__dict__[k] = data[k]
-            
+
     def jsonify(self):
         json = {}
         for k in self.__dict__.keys():
             if type(self.__dict__[k]) == type(''):
                 json[k] = self.__dict__[k]
         return json
-        
+
     def xmlify(self):
         converted = [re.sub('_', '-', k) for k in self.__dict__.keys()]
         for d in self.xml.iter(tag=etree.Element):
@@ -27,20 +28,22 @@ class LinkedInData(object):
                 except:
                     continue
         return etree.tostring(self.xml)
-    
+
     def __str__(self):
         return self.update_content if hasattr(self, 'update_content') and self.update_content else '<No Content>'
-    
+
+
 class LinkedInError(LinkedInData):
     def __repr__(self):
         return '<LinkedIn Error code %s>'.encode('utf-8') % self.status
-        
+
+
 class NetworkUpdate(LinkedInData):
     def __init__(self, data, xml):
         self.xml = xml
         self.update_key = None
         self.parse_data(data)
-        
+
     def jsonify(self):
         jsondict = {'first_name': self.first_name,
                     'last_name': self.last_name,
@@ -49,7 +52,8 @@ class NetworkUpdate(LinkedInData):
                     'update_key': self.update_key,
                     'profile_url': self.profile_url}
         return jsondict
-    
+
+
 class NetworkStatusUpdate(NetworkUpdate):
     def __init__(self, data, xml):
         self.status_xpath = etree.XPath('update-content/person/current-status')
@@ -60,12 +64,13 @@ class NetworkStatusUpdate(NetworkUpdate):
         self.update_content = self.status_xpath(xml)[0].text.strip()
         self.comments = []
         self.get_comments()
-        
+
     def get_comments(self):
         for c in self.comment_xpath(self.xml):
             comment = NetworkUpdateComment(c)
             self.comments.append(comment)
         return
+
 
 class NetworkConnectionUpdate(NetworkUpdate):
     def __init__(self, data, xml):
@@ -76,12 +81,12 @@ class NetworkConnectionUpdate(NetworkUpdate):
         self.targets = []
         self.get_targets()
         self.set_update_content(self.targets)
-    
+
     def get_targets(self):
         for p in self.connection_target(self.xml):
             obj = lixml.LinkedInProfileParser(p).results
         self.targets = obj
-    
+
     def set_update_content(self, targets):
         update_str = self.first_name + ' ' + self.last_name + ' is now connected with '
         if len(targets) == 1:
@@ -93,25 +98,28 @@ class NetworkConnectionUpdate(NetworkUpdate):
         self.update_content = update_str
         return
 
+
 class NetworkNewConnectionUpdate(NetworkConnectionUpdate):
     def get_targets(self):
         self.connection_target = etree.XPath('update-content/person/')
         for p in self.connection_target(self.xml):
             obj = LinkedInProfileParser(p).results
         self.targets = obj
-    
+
     def set_update_content(self, target):
         update_str = ' is now connected with you.'
         update_str = targets[0].first_name + ' ' + targets[0].last_name + update_str
         self.update_content = update_str
         return
-    
+
+
 class NetworkAddressBookUpdate(NetworkNewConnectionUpdate):
     def set_update_content(self, target):
         update_str = ' just joined LinkedIn.'
         update_str = self.targets[0].first_name + ' ' + self.targets[0].last_name + update_str
         self.update_content = update_str
         return
+
 
 class NetworkGroupUpdate(NetworkUpdate):
     def __init__(self, data, xml):
@@ -124,7 +132,7 @@ class NetworkGroupUpdate(NetworkUpdate):
         self.targets = []
         self.get_targets()
         self.set_update_content(self.targets)
-    
+
     def get_targets(self):
         for g in self.group_target(self.xml):
             target_dict = {}
@@ -133,7 +141,7 @@ class NetworkGroupUpdate(NetworkUpdate):
             target_dict[k] = v
             self.targets.append(target_dict)
         return
-    
+
     def set_update_content(self, targets):
         update_str = self.first_name + ' ' + self.last_name + ' joined '
         if len(targets) == 1:
@@ -144,7 +152,8 @@ class NetworkGroupUpdate(NetworkUpdate):
         update_str = re.sub(', and $', '', update_str)
         self.update_content = update_str
         return
-    
+
+
 class NetworkQuestionUpdate(NetworkUpdate):
     def __init__(self, data, xml):
         self.xml = xml
@@ -152,14 +161,15 @@ class NetworkQuestionUpdate(NetworkUpdate):
         self.parse_data(data)
         self.question_title_xpath = etree.XPath('update-content/question/title')
         self.set_update_content()
-    
+
     def set_update_content(self):
         update_str = self.first_name + ' ' + self.last_name + ' asked a question: '
         qstn_text = self.question_title_xpath(self.xml)[0].text.strip()
         update_str += qstn_text
         self.update_content = update_str
         return
-    
+
+
 class NetworkAnswerUpdate(NetworkUpdate):
     def __init__(self, data, xml):
         self.update_key = None
@@ -169,31 +179,33 @@ class NetworkAnswerUpdate(NetworkUpdate):
         self.answer_xpath = etree.XPath('update-content/question/answers/answer')
         self.get_answers()
         self.set_update_content()
-    
+
     def get_answers(self):
         for a in self.answer_xpath(self.xml):
             self.profile_url = a.xpath('web-url')[0].text.strip()
             self.first_name = a.xpath('author/first-name')[0].text.strip()
             self.last_name = a.xpath('author/last-name')[0].text.strip()
-    
+
     def set_update_content(self):
         update_str = self.first_name + ' ' + self.last_name + ' answered: '
         qstn_text = self.question_title_xpath(self.xml)[0].text.strip()
         update_str += qstn_text
         self.update_content = update_str
         return
-    
+
+
 class NetworkJobPostingUpdate(NetworkUpdate):
     def __init__(self, data, xml):
         self.xml = xml
         self.parse_data(data)
         self.set_update_content()
         self.poster = lixml.LinkedInXMLParser(xml.xpath('job-poster')[0])
-    
+
     def set_update_content(self):
         update_str = self.poster.first_name + ' ' + self.poster.last_name + ' posted a job: ' + self.job_title
         self.update_content = update_str
         return
+
 
 class NetworkUpdateComment(LinkedInData):
     def __init__(self, xml):
@@ -205,13 +217,14 @@ class NetworkUpdateComment(LinkedInData):
         self.last_name = self.__content.last_name
         self.profile_url = self.__content.profile_url
         self.update_content = self.comment_xpath(xml)[0].text
-        
+
     def jsonify(self):
         jsondict = {'first_name': self.first_name,
                     'last_name': self.last_name,
                     'update_content': self.update_content,
                     'profile_url': self.profile_url}
         return jsondict
+
 
 class Profile(LinkedInData):
     def __init__(self, data, xml):
@@ -231,72 +244,76 @@ class Profile(LinkedInData):
         self.get_educations()
         self.get_twitter_accounts()
         self.get_member_url_resources()
-        
+
     def set_profile_url(self):
         try:
             profile_url_xpath = etree.XPath('site-standard-profile-request/url')
             self.profile_url = profile_url_xpath(self.xml)[0].text.strip()
         except:
             pass
-            
+
     def get_location(self):
-    	try:
+        try:
             location_name_xpath = etree.XPath('location/name')
             self.location = location_name_xpath(self.xml)[0].text.strip()
             country_code_xpath = etree.XPath('location/country/code')
             self.country = country_code_xpath(self.xml)[0].text.strip()
         except:
             pass
-        
+
     def get_positions(self):
         profile_position_xpath = etree.XPath('positions/position')
         pos = profile_position_xpath(self.xml)
         for p in pos:
             obj = lixml.LinkedInXMLParser(etree.tostring(p)).results
             self.positions.append(obj)
-            
+
     def get_skills(self):
-        
+
         profile_skills_xpath = etree.XPath('skills/skill')
         skills = profile_skills_xpath(self.xml)
         for s in skills:
             obj = lixml.LinkedInXMLParser(etree.tostring(s)).results
             self.skills.append(obj)
-    
+
     def get_educations(self):
         profile_education_xpath = etree.XPath('educations/education')
         eds = profile_education_xpath(self.xml)
         for e in eds:
             obj = lixml.LinkedInXMLParser(etree.tostring(e)).results
             self.educations.append(obj)
-            
-    def get_twitter_accounts(self):
-    	twitter_accounts_xpath = etree.XPath('twitter-accounts/twitter-account')
-    	accounts = twitter_accounts_xpath(self.xml)
-    	for account in accounts:
-    		obj = lixml.LinkedInXMLParser(etree.tostring(account)).results
-    		self.twitter_accounts.append(obj)
-    		
-    def get_member_url_resources(self):
-    	url_resources_xpath = etree.XPath('member-url-resources/member-url')
-    	urls = url_resources_xpath(self.xml)
-    	for url in urls:
-    		obj = lixml.LinkedInXMLParser(etree.tostring(url)).results
-    		self.member_url_resources.append(obj)
 
-    		
-        
+    def get_twitter_accounts(self):
+        twitter_accounts_xpath = etree.XPath('twitter-accounts/twitter-account')
+        accounts = twitter_accounts_xpath(self.xml)
+        for account in accounts:
+            obj = lixml.LinkedInXMLParser(etree.tostring(account)).results
+            self.twitter_accounts.append(obj)
+
+    def get_member_url_resources(self):
+        url_resources_xpath = etree.XPath('member-url-resources/member-url')
+        urls = url_resources_xpath(self.xml)
+        for url in urls:
+            obj = lixml.LinkedInXMLParser(etree.tostring(url)).results
+            self.member_url_resources.append(obj)
+
+
+
 class Position(LinkedInData):
     pass
 
+
 class Education(LinkedInData):
     pass
-    
+
+
 class TwitterAccount(LinkedInData):
     pass
-  
+
+
 class Skills(LinkedInData):
     pass
-    
+
+
 class MemberUrlResource(LinkedInData):
     pass
